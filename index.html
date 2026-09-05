@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>College Football Pool Tracker</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: #0f141c;
+      color: #e1e7ed;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1500px;
+      margin: 0 auto;
+      background: #1a222d;
+      padding: 25px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      border: 1px solid #2a3644;
+      overflow-x: auto;
+    }
+    h1, h2 {
+      color: #ffffff;
+      margin-top: 0;
+    }
+    h2 {
+      margin-top: 40px;
+      padding-top: 25px;
+      border-top: 1px solid #2a3644;
+    }
+    p {
+      color: #9ab0c4;
+      font-size: 0.95rem;
+    }
+    p strong {
+      color: #ffffff;
+    }
+    .status-bar {
+      margin: 15px 0;
+      font-size: 0.85rem;
+      color: #66bb6a;
+      font-weight: 500;
+    }
+    .status-error {
+      color: #ef5350;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      min-width: 1400px;
+    }
+    th, td {
+      padding: 10px 6px;
+      text-align: center;
+      border-bottom: 1px solid #2a3644;
+      vertical-align: middle;
+      font-size: 0.80rem;
+    }
+    th {
+      background-color: #121820;
+      color: #8fa3b8;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    tr:hover {
+      background-color: #222c3a;
+    }
+    
+    /* Member Column */
+    th:nth-child(1), td:nth-child(1) {
+      text-align: left;
+      white-space: nowrap;
+      padding-left: 8px;
+      color: #ffffff;
+    }
+    
+    /* Team Column */
+    th:nth-child(2), td:nth-child(2) {
+      text-align: left;
+      white-space: nowrap;
+      min-width: 140px;
+    }
+    
+    /* Summary columns at the end */
+    th:nth-last-child(3), td:nth-last-child(3),
+    th:nth-last-child(2), td:nth-last-child(2),
+    th:nth-last-child(1), td:nth-last-child(1) {
+      white-space: nowrap;
+    }
+
+    .team-cell {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+      color: #ffffff;
+    }
+    .team-logo {
+      width: 22px;
+      height: 22px;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+    .matchup-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      line-height: 1.25;
+      white-space: nowrap;
+    }
+    .matchup-opponent {
+      color: #8fa3b8;
+      font-size: 0.70rem;
+    }
+    .matchup-score {
+      font-weight: bold;
+    }
+    .win-text { color: #66bb6a; }
+    .loss-text { color: #ef5350; }
+    .scheduled-text { color: #55687a; font-style: italic; }
+    
+    .badge-loss {
+      background-color: #3c1e24;
+      color: #ef5350;
+      border: 1px solid #5c2830;
+      font-weight: bold;
+      padding: 3px 6px;
+      border-radius: 4px;
+      display: inline-block;
+    }
+    .badge-win {
+      background-color: #1b382b;
+      color: #66bb6a;
+      border: 1px solid #23523d;
+      font-weight: bold;
+      padding: 3px 6px;
+      border-radius: 4px;
+      display: inline-block;
+    }
+    .amount {
+      font-weight: bold;
+      color: #ef5350;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>College Football Pool Tracker</h1>
+  <p>Penalty rule: <strong>$3 per loss</strong> to every other member in the pool (6 members total = <strong>$18 per loss</strong>).</p>
+
+  <div class="status-bar" id="status">Loading live schedules & standings from ESPN...</div>
+
+  <!-- Main Pool Table -->
+  <table>
+    <thead>
+      <tr id="table-header-1"></tr>
+    </thead>
+    <tbody id="pool-table-1"></tbody>
+  </table>
+
+  <!-- Second Pool Section -->
+  <h2>The Ol' Switcheroo</h2>
+  <p>Penalty rule: <strong>$2.50 per win</strong> to every other member in the pool (2 members total = <strong>$5.00 per win</strong>).</p>
+
+  <table>
+    <thead>
+      <tr id="table-header-2"></tr>
+    </thead>
+    <tbody id="pool-table-2"></tbody>
+  </table>
+</div>
+
+<script>
+  const TOTAL_WEEKS_TO_DISPLAY = 14;
+
+  const roster1 = [
+    { member: "Branson C.", defaultTeam: "Miami",      teamId: "2390" },
+    { member: "Jamie C.",   defaultTeam: "Notre Dame", teamId: "87" },
+    { member: "Jason S.",   defaultTeam: "Oregon",     teamId: "2483" },
+    { member: "Josh M.",    defaultTeam: "Georgia",    teamId: "61" },
+    { member: "Justin B.",  defaultTeam: "Indiana",    teamId: "84" },
+    { member: "Scott H.",   defaultTeam: "Ohio State", teamId: "194" },
+    { member: "Trevor A.",  defaultTeam: "Texas",      teamId: "251" }
+  ];
+
+  const roster2 = [
+    { member: "Jamie C.",   defaultTeam: "FIU",   teamId: "2229" },
+    { member: "Scott H.",   defaultTeam: "UMass", teamId: "113" },
+    { member: "Trevor A.",  defaultTeam: "Akron", teamId: "2006" }
+  ];
+
+  function setupTableHeaders() {
+    let headers = `<th>Member</th><th>Team</th>`;
+    for (let w = 1; w <= TOTAL_WEEKS_TO_DISPLAY; w++) {
+      headers += `<th>Wk ${w}</th>`;
+    }
+    headers += `<th>Wins</th><th>Losses</th><th>Total Owed</th>`;
+
+    document.getElementById("table-header-1").innerHTML = headers;
+    document.getElementById("table-header-2").innerHTML = headers;
+  }
+
+  function renderPoolTable(tableId, roster, teamData, costPerUnit, calculateByWins = false) {
+    const tbody = document.getElementById(tableId);
+    tbody.innerHTML = "";
+
+    const otherMembersCount = roster.length - 1;
+    const sortedRoster = [...roster].sort((a, b) => a.member.localeCompare(b.member));
+
+    sortedRoster.forEach(item => {
+      const info = teamData[item.teamId] || {
+        name: item.defaultTeam,
+        logo: `https://a.espncdn.com/i/teamlogos/ncaa/500/${item.teamId}.png`,
+        wins: 0,
+        losses: 0,
+        weeks: {}
+      };
+
+      const countForOwed = calculateByWins ? info.wins : info.losses;
+      const totalOwed = (countForOwed * costPerUnit * otherMembersCount).toFixed(2);
+
+      const logoHtml = info.logo 
+        ? `<img src="${info.logo}" alt="${info.name}" class="team-logo" onerror="this.style.display='none'">` 
+        : "";
+
+      let cells = `
+        <td><strong>${item.member}</strong></td>
+        <td>
+          <div class="team-cell">
+            ${logoHtml}
+            <span>${info.name}</span>
+          </div>
+        </td>
+      `;
+
+      for (let w = 1; w <= TOTAL_WEEKS_TO_DISPLAY; w++) {
+        const game = info.weeks ? info.weeks[w] : null;
+        
+        if (!game) {
+          cells += `<td><div class="matchup-box"><span class="scheduled-text">-</span></div></td>`;
+        } else if (game.status === "completed") {
+          const outcomeClass = game.isWin ? "win-text" : "loss-text";
+          const outcomeLabel = game.isWin ? "W" : "L";
+          cells += `
+            <td>
+              <div class="matchup-box">
+                <span class="matchup-opponent">${game.isHome ? 'vs' : '@'}${game.opponent}</span>
+                <span class="matchup-score ${outcomeClass}">${outcomeLabel} ${game.teamScore}-${game.oppScore}</span>
+              </div>
+            </td>
+          `;
+        } else if (game.status === "in_progress") {
+          cells += `
+            <td>
+              <div class="matchup-box">
+                <span class="matchup-opponent">${game.isHome ? 'vs' : '@'}${game.opponent}</span>
+                <span class="matchup-score">${game.teamScore}-${game.oppScore}</span>
+              </div>
+            </td>
+          `;
+        } else {
+          cells += `
+            <td>
+              <div class="matchup-box">
+                <span class="matchup-opponent">${game.isHome ? 'vs' : '@'}${game.opponent}</span>
+                <span class="scheduled-text">Sched</span>
+              </div>
+            </td>
+          `;
+        }
+      }
+
+      cells += `
+        <td><span class="badge-win">${info.wins} W</span></td>
+        <td><span class="badge-loss">${info.losses} L</span></td>
+        <td class="amount">$${totalOwed}</td>
+      `;
+
+      const row = document.createElement("tr");
+      row.innerHTML = cells;
+      tbody.appendChild(row);
+    });
+  }
+
+  async function fetchAllData() {
+    const statusEl = document.getElementById("status");
+    const teamData = {};
+
+    const combinedRosters = [...roster1, ...roster2];
+
+    combinedRosters.forEach(r => {
+      teamData[r.teamId] = {
+        name: r.defaultTeam,
+        logo: `https://a.espncdn.com/i/teamlogos/ncaa/500/${r.teamId}.png`,
+        wins: 0,
+        losses: 0,
+        weeks: {}
+      };
+    });
+
+    renderPoolTable("pool-table-1", roster1, teamData, 3.00, false);
+    renderPoolTable("pool-table-2", roster2, teamData, 2.50, true);
+
+    const teamFetchPromises = combinedRosters.map(async (memberItem) => {
+      const teamId = memberItem.teamId;
+      try {
+        const schedRes = await fetch(`https://site.api.espn.com/apis/site/v2/sports/football/college-football/teams/${teamId}/schedule`);
+        if (!schedRes.ok) return;
+        const schedJson = await schedRes.json();
+
+        if (schedJson.team) {
+          if (schedJson.team.displayName) teamData[teamId].name = schedJson.team.displayName;
+          if (schedJson.team.logo) teamData[teamId].logo = schedJson.team.logo;
+          
+          let recordSummary = "";
+
+          // 1. Check top-level team.record array
+          if (schedJson.team.record && schedJson.team.record.items && schedJson.team.record.items.length > 0) {
+            recordSummary = schedJson.team.record.items[0].summary || "";
+          }
+
+          // 2. Check team.stats array for type "total" or name "overall"
+          if (!recordSummary && Array.isArray(schedJson.team.stats)) {
+            const overallStat = schedJson.team.stats.find(s => s.type === "total" || s.name === "overall");
+            if (overallStat) {
+              recordSummary = overallStat.summary || overallStat.displayValue || "";
+            }
+          }
+
+          // Parse "W-L" string (e.g. "0-1")
+          if (recordSummary) {
+            const parts = recordSummary.split("-");
+            if (parts.length >= 2) {
+              teamData[teamId].wins = parseInt(parts[0], 10) || 0;
+              teamData[teamId].losses = parseInt(parts[1], 10) || 0;
+            }
+          }
+        }
+
+        if (schedJson.events && Array.isArray(schedJson.events)) {
+          let calculatedWeek = 1;
+          let calculatedWins = 0;
+          let calculatedLosses = 0;
+
+          schedJson.events.forEach((event) => {
+            let weekNum = null;
+
+            if (event.week && typeof event.week === 'object' && event.week.number) {
+              weekNum = Number(event.week.number);
+            } else if (typeof event.week === 'number') {
+              weekNum = event.week;
+            }
+
+            if (!weekNum || isNaN(weekNum)) {
+              weekNum = calculatedWeek;
+            }
+            calculatedWeek++;
+
+            if (weekNum > TOTAL_WEEKS_TO_DISPLAY) return;
+
+            const competition = event.competitions ? event.competitions[0] : null;
+            if (!competition) return;
+
+            const teamCompetitor = competition.competitors ? competition.competitors.find(c => String(c.id) === teamId) : null;
+            const oppCompetitor = competition.competitors ? competition.competitors.find(c => String(c.id) !== teamId) : null;
+
+            if (teamCompetitor && oppCompetitor) {
+              const isHome = teamCompetitor.homeAway === "home";
+              const oppName = (oppCompetitor.team && (oppCompetitor.team.abbreviation || oppCompetitor.team.shortDisplayName || oppCompetitor.team.displayName)) || "OPP";
+              
+              const teamScore = teamCompetitor.score ? teamCompetitor.score.value : 0;
+              const oppScore = oppCompetitor.score ? oppCompetitor.score.value : 0;
+              const isWin = teamCompetitor.winner === true;
+
+              let status = "scheduled";
+              if (competition.status && competition.status.type) {
+                if (competition.status.type.completed) {
+                  status = "completed";
+                  if (isWin) calculatedWins++;
+                  else calculatedLosses++;
+                } else if (competition.status.type.state === "in") {
+                  status = "in_progress";
+                }
+              }
+
+              teamData[teamId].weeks[weekNum] = {
+                opponent: oppName,
+                isHome,
+                teamScore,
+                oppScore,
+                isWin,
+                status
+              };
+            }
+          });
+
+          // 3. Fallback: If stats/record parsing yielded 0-0 but completed games exist, use game tallies
+          if (teamData[teamId].wins === 0 && teamData[teamId].losses === 0 && (calculatedWins > 0 || calculatedLosses > 0)) {
+            teamData[teamId].wins = calculatedWins;
+            teamData[teamId].losses = calculatedLosses;
+          }
+        }
+      } catch (e) {
+        console.warn(`Could not load schedule for team ${teamId}`, e);
+      }
+    });
+
+    try {
+      await Promise.all(teamFetchPromises);
+      renderPoolTable("pool-table-1", roster1, teamData, 3.00, false);
+      renderPoolTable("pool-table-2", roster2, teamData, 2.50, true);
+      
+      statusEl.classList.remove("status-error");
+      statusEl.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+    } catch (err) {
+      console.error(err);
+      statusEl.classList.add("status-error");
+      statusEl.textContent = "Loaded schedule with default data.";
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    setupTableHeaders();
+    fetchAllData();
+  });
+</script>
+
+</body>
+</html>
