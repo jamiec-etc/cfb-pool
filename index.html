@@ -188,10 +188,10 @@
       color: #9ab0c4;
       font-weight: bold;
     }
-    @media (max-width: 700px) {
+    @media (max-width: 700px), (orientation: portrait) and (max-width: 1024px) {
       .container {
         padding-right: 0;
-        --frozen-team-width: min(212px, calc(100vw - 178px));
+        --frozen-team-width: min(170px, calc(100vw - 178px));
       }
       th:nth-child(2), td:nth-child(2) {
         box-sizing: border-box;
