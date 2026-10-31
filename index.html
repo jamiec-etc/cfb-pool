@@ -207,6 +207,10 @@
     document.getElementById("table-header-2").innerHTML = headers;
   }
 
+  function getScore(competitor) {
+    return Number(competitor.score?.value ?? competitor.score) || 0;
+  }
+
   function renderPoolTable(tableId, roster, teamData, costPerUnit, calculateByWins = false) {
     const tbody = document.getElementById(tableId);
     tbody.innerHTML = "";
@@ -308,12 +312,24 @@
     renderPoolTable("pool-table-1", roster1, teamData, 3.00, false);
     renderPoolTable("pool-table-2", roster2, teamData, 2.50, true);
 
+    const scoreboardEventsPromise = fetch("https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard", { cache: "no-store" })
+      .then(async (scoreboardRes) => {
+        if (!scoreboardRes.ok) return new Map();
+        const scoreboardJson = await scoreboardRes.json();
+        return new Map((scoreboardJson.events || []).map(event => [String(event.id), event]));
+      })
+      .catch((e) => {
+        console.warn("Could not load live scoreboard", e);
+        return new Map();
+      });
+
     const teamFetchPromises = combinedRosters.map(async (memberItem) => {
       const teamId = memberItem.teamId;
       try {
         const schedRes = await fetch(`https://site.api.espn.com/apis/site/v2/sports/football/college-football/teams/${teamId}/schedule`);
         if (!schedRes.ok) return;
         const schedJson = await schedRes.json();
+        const scoreboardEvents = await scoreboardEventsPromise;
 
         if (schedJson.team) {
           if (schedJson.team.displayName) teamData[teamId].name = schedJson.team.displayName;
@@ -365,7 +381,13 @@
 
             if (weekNum > TOTAL_WEEKS_TO_DISPLAY) return;
 
-            const competition = event.competitions ? event.competitions[0] : null;
+            const scheduledCompetition = event.competitions ? event.competitions[0] : null;
+            const scoreboardEvent = scoreboardEvents.get(String(event.id));
+            const scoreboardCompetition = scoreboardEvent?.competitions?.[0];
+            const scoreboardState = scoreboardCompetition?.status?.type?.state;
+            const competition = scoreboardState === "in" || scoreboardState === "post"
+              ? scoreboardCompetition
+              : scheduledCompetition;
             if (!competition) return;
 
             const teamCompetitor = competition.competitors ? competition.competitors.find(c => String(c.id) === teamId) : null;
@@ -375,8 +397,8 @@
               const isHome = teamCompetitor.homeAway === "home";
               const oppName = (oppCompetitor.team && (oppCompetitor.team.abbreviation || oppCompetitor.team.shortDisplayName || oppCompetitor.team.displayName)) || "OPP";
               
-              const teamScore = teamCompetitor.score ? teamCompetitor.score.value : 0;
-              const oppScore = oppCompetitor.score ? oppCompetitor.score.value : 0;
+              const teamScore = getScore(teamCompetitor);
+              const oppScore = getScore(oppCompetitor);
               const isWin = teamCompetitor.winner === true;
 
               let status = "scheduled";
