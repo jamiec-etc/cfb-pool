@@ -176,6 +176,18 @@
       font-weight: bold;
       color: #ef5350;
     }
+    .net-positive {
+      color: #66bb6a;
+      font-weight: bold;
+    }
+    .net-negative {
+      color: #ef5350;
+      font-weight: bold;
+    }
+    .net-zero {
+      color: #9ab0c4;
+      font-weight: bold;
+    }
     @media (max-width: 700px) {
       .container {
         padding-right: 0;
@@ -251,7 +263,7 @@
     for (let w = 1; w <= TOTAL_WEEKS_TO_DISPLAY; w++) {
       headers += `<th>Wk ${w}</th>`;
     }
-    headers += `<th>Wins</th><th>Losses</th><th>Total Owed</th>`;
+    headers += `<th>Wins</th><th>Losses</th><th>Net</th>`;
 
     document.getElementById("table-header-1").innerHTML = headers;
     document.getElementById("table-header-2").innerHTML = headers;
@@ -266,6 +278,11 @@
     tbody.innerHTML = "";
 
     const otherMembersCount = roster.length - 1;
+    const countForMember = member => {
+      const info = teamData[member.teamId];
+      return info ? (calculateByWins ? info.wins : info.losses) : 0;
+    };
+    const poolTotalCount = roster.reduce((total, member) => total + countForMember(member), 0);
     const sortedRoster = [...roster].sort((a, b) => a.member.localeCompare(b.member));
 
     sortedRoster.forEach(item => {
@@ -277,8 +294,12 @@
         weeks: {}
       };
 
-      const countForOwed = calculateByWins ? info.wins : info.losses;
-      const totalOwed = (countForOwed * costPerUnit * otherMembersCount).toFixed(2);
+      const countForOwed = countForMember(item);
+      const memberOwes = countForOwed * costPerUnit * otherMembersCount;
+      const memberIsOwed = (poolTotalCount - countForOwed) * costPerUnit;
+      const netBalance = memberIsOwed - memberOwes;
+      const netLabel = `${netBalance > 0 ? "+" : netBalance < 0 ? "-" : ""}$${Math.abs(netBalance).toFixed(2)}`;
+      const netClass = netBalance > 0 ? "net-positive" : netBalance < 0 ? "net-negative" : "net-zero";
 
       const logoHtml = info.logo 
         ? `<img src="${info.logo}" alt="${info.name}" class="team-logo" onerror="this.style.display='none'">` 
@@ -334,7 +355,7 @@
       cells += `
         <td><span class="badge-win">${info.wins} W</span></td>
         <td><span class="badge-loss">${info.losses} L</span></td>
-        <td class="amount">$${totalOwed}</td>
+        <td><span class="${netClass}">${netLabel}</span></td>
       `;
 
       const row = document.createElement("tr");
