@@ -245,6 +245,7 @@
       const info = teamData[item.teamId] || {
         name: item.defaultTeam,
         logo: `https://a.espncdn.com/i/teamlogos/ncaa/500/${item.teamId}.png`,
+        rank: null,
         wins: 0,
         losses: 0,
         weeks: {}
@@ -256,6 +257,7 @@
       const netBalance = memberIsOwed - memberOwes;
       const netLabel = `${netBalance > 0 ? "+" : netBalance < 0 ? "-" : ""}$${Math.abs(netBalance).toFixed(2)}`;
       const netClass = netBalance > 0 ? "net-positive" : netBalance < 0 ? "net-negative" : "net-zero";
+      const teamLabel = info.rank ? `#${info.rank} ${info.name}` : info.name;
 
       const logoHtml = info.logo 
         ? `<img src="${info.logo}" alt="${info.name}" class="team-logo" onerror="this.style.display='none'">` 
@@ -266,7 +268,7 @@
         <td>
           <div class="team-cell">
             ${logoHtml}
-            <span>${info.name}</span>
+            <span>${teamLabel}</span>
           </div>
         </td>
       `;
@@ -330,6 +332,7 @@
       teamData[r.teamId] = {
         name: r.defaultTeam,
         logo: `https://a.espncdn.com/i/teamlogos/ncaa/500/${r.teamId}.png`,
+        rank: null,
         wins: 0,
         losses: 0,
         weeks: {}
@@ -406,8 +409,6 @@
             }
             calculatedWeek++;
 
-            if (weekNum > TOTAL_WEEKS_TO_DISPLAY) return;
-
             const scheduledCompetition = event.competitions ? event.competitions[0] : null;
             const scoreboardEvent = scoreboardEvents.get(String(event.id));
             const scoreboardCompetition = scoreboardEvent?.competitions?.[0];
@@ -419,6 +420,13 @@
 
             const teamCompetitor = competition.competitors ? competition.competitors.find(c => String(c.id) === teamId) : null;
             const oppCompetitor = competition.competitors ? competition.competitors.find(c => String(c.id) !== teamId) : null;
+
+            if (teamCompetitor?.curatedRank?.current != null) {
+              const rank = Number(teamCompetitor.curatedRank.current);
+              teamData[teamId].rank = Number.isFinite(rank) && rank > 0 && rank < 99 ? rank : null;
+            }
+
+            if (weekNum > TOTAL_WEEKS_TO_DISPLAY) return;
 
             if (teamCompetitor && oppCompetitor) {
               const isHome = teamCompetitor.homeAway === "home";
