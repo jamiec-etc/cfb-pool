@@ -20,6 +20,8 @@
       border-radius: 12px;
       box-shadow: 0 4px 20px rgba(0,0,0,0.4);
       border: 1px solid #2a3644;
+    }
+    .table-scroll {
       overflow-x: auto;
     }
     h1, h2 {
@@ -170,23 +172,27 @@
   <div class="status-bar" id="status">Loading live schedules & standings from ESPN...</div>
 
   <!-- Main Pool Table -->
-  <table>
-    <thead>
-      <tr id="table-header-1"></tr>
-    </thead>
-    <tbody id="pool-table-1"></tbody>
-  </table>
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr id="table-header-1"></tr>
+      </thead>
+      <tbody id="pool-table-1"></tbody>
+    </table>
+  </div>
 
   <!-- Second Pool Section -->
   <h2>The Ol' Switcheroo</h2>
   <p>Penalty rule: <strong>$2.50 per win</strong> to every other member in the pool (2 members total = <strong>$5.00 per win</strong>).</p>
 
-  <table>
-    <thead>
-      <tr id="table-header-2"></tr>
-    </thead>
-    <tbody id="pool-table-2"></tbody>
-  </table>
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr id="table-header-2"></tr>
+      </thead>
+      <tbody id="pool-table-2"></tbody>
+    </table>
+  </div>
 </div>
 
 <script>
